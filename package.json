@@ -1,0 +1,32 @@
+{
+    "name": "telegram-location-bot",
+    "version": "1.0.0",
+    "description": "Bot de Telegram que obtiene direcciones usando Gemini",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts",
+        "watch": "tsc -w"
+    },
+    "keywords": [
+        "telegram",
+        "bot",
+        "gemini",
+        "location"
+    ],
+    "author": "Tu nombre",
+    "license": "MIT",
+    "dependencies": {
+        "node-telegram-bot-api": "^0.66.0",
+        "@google/generative-ai": "^0.17.1",
+        "axios": "^1.6.0",
+        "dotenv": "^16.3.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/node-telegram-bot-api": "^0.64.0",
+        "typescript": "^5.0.0",
+        "ts-node": "^10.9.0"
+    }
+}

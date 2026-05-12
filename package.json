@@ -18,15 +18,16 @@
     "author": "Tu nombre",
     "license": "MIT",
     "dependencies": {
-        "node-telegram-bot-api": "^0.66.0",
         "@google/generative-ai": "^0.17.1",
+        "@supabase/supabase-js": "^2.50.3",
         "axios": "^1.6.0",
-        "dotenv": "^16.3.1"
+        "dotenv": "^16.3.1",
+        "node-telegram-bot-api": "^0.66.0"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
         "@types/node-telegram-bot-api": "^0.64.0",
-        "typescript": "^5.0.0",
-        "ts-node": "^10.9.0"
+        "ts-node": "^10.9.0",
+        "typescript": "^5.0.0"
     }
 }

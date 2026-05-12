@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { LocationInfo, LocationData } from '../types/interfaces';
+import { LocationInfo, LocationData, ClockRecord } from '../types/interfaces';
 
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
@@ -10,118 +10,125 @@ export class GeminiService {
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   }
 
-  async generateDetailedLocationResponse(locationInfo: LocationInfo): Promise<string> {
+  async generateClockInResponse(locationInfo: LocationInfo, nombreEmpleado: string, nombreEvento: string): Promise<string> {
     try {
       const prompt = `
-        Actúa como un asistente especializado en información geográfica y ubicaciones.
+        El empleado ${nombreEmpleado} de Selecta Eventos acaba de hacer ClockIn para el evento "${nombreEvento}".
         
-        DATOS DE LA UBICACIÓN:
-        - Dirección completa: ${locationInfo.address.formattedAddress}
-        - Coordenadas exactas: ${locationInfo.coordinates.latitude}, ${locationInfo.coordinates.longitude}
-        - Ciudad: ${locationInfo.address.city || 'No especificada'}
-        - Barrio/Zona: ${locationInfo.address.neighbourhood || locationInfo.address.suburb || 'No especificado'}
-        - Departamento/Estado: ${locationInfo.address.state || 'No especificado'}
-        - País: ${locationInfo.address.country || 'No especificado'}
-        - Código postal: ${locationInfo.address.postalCode || 'No disponible'}
-        - Zona horaria: ${locationInfo.timeZone || 'No determinada'}
-        - Precisión: ${locationInfo.accuracy || 'Media'}
-        - Lugares cercanos: ${locationInfo.nearbyPlaces?.join(', ') || 'No identificados'}
-        - Contexto: ${locationInfo.locationContext || 'No disponible'}
-
-        INSTRUCCIONES:
-        1. Crea una respuesta estructurada y profesional en español
-        2. Incluye TODA la información disponible de manera organizada
-        3. Destaca lugares importantes cercanos si los hay
-        4. Menciona las coordenadas exactas para referencia
-        5. Usa emojis apropiados para hacer la respuesta más visual
-        6. Si hay lugares de interés cercanos, mencionálos específicamente
-        7. Estructura la información de manera clara con subtítulos
-
-        FORMATO DE RESPUESTA:
-        - Usa **negrita** para títulos
-        - Incluye emojis relevantes
-        - Máximo 15 líneas
-        - Información organizada y fácil de leer
+        INFORMACIÓN DE ENTRADA:
+        - Empleado: ${nombreEmpleado} (Equipo Selecta Eventos)
+        - Evento: ${nombreEvento}
+        - Ubicación: ${locationInfo.address.formattedAddress}
+        - Coordenadas: ${locationInfo.coordinates.latitude}, ${locationInfo.coordinates.longitude}
+        
+        Genera una respuesta profesional que:
+        1. Confirme el ClockIn exitoso en Selecta Eventos
+        2. Mencione el evento específico
+        3. Muestre la ubicación registrada
+        4. Informe sobre el siguiente paso (ClockOut)
+        5. Sea motivacional y mencione Selecta Eventos
+        
+        Máximo 4 líneas, en español, con emojis apropiados.
       `;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
 
-      return text || this.createFallbackResponse(locationInfo);
+      return text || this.createFallbackClockInResponse(locationInfo, nombreEmpleado, nombreEvento);
 
     } catch (error) {
-      console.error('Error al generar respuesta con Gemini:', error);
-      return this.createFallbackResponse(locationInfo);
+      console.error('Error al generar respuesta de ClockIn:', error);
+      return this.createFallbackClockInResponse(locationInfo, nombreEmpleado, nombreEvento);
     }
   }
 
-  private createFallbackResponse(locationInfo: LocationInfo): string {
-    const { address, coordinates, nearbyPlaces, timeZone, accuracy } = locationInfo;
-    
-    let response = `📍 **INFORMACIÓN DE UBICACIÓN**\n\n`;
-    response += `🏠 **Dirección:** ${address.formattedAddress}\n`;
-    response += `🗺️ **Coordenadas:** ${coordinates.latitude}, ${coordinates.longitude}\n`;
-    
-    if (address.neighbourhood || address.suburb) {
-      response += `🏘️ **Zona:** ${address.neighbourhood || address.suburb}\n`;
+  async generateClockOutResponse(
+    nombreEmpleado: string, 
+    nombreEvento: string,
+    durationMinutes: number,
+    clockInAddress: string, 
+    clockOutAddress: string,
+    locationsMatch: boolean,
+    distance: number
+  ): Promise<string> {
+    try {
+      const hours = Math.floor(durationMinutes / 60);
+      const minutes = durationMinutes % 60;
+      const timeWorked = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+      const prompt = `
+        El empleado ${nombreEmpleado} de Selecta Eventos completó su jornada para el evento "${nombreEvento}".
+        
+        DATOS DE LA JORNADA EN SELECTA:
+        - Empleado: ${nombreEmpleado} (Equipo Selecta Eventos)
+        - Evento: ${nombreEvento}
+        - Tiempo trabajado: ${timeWorked}
+        - Ubicación entrada: ${clockInAddress}
+        - Ubicación salida: ${clockOutAddress}
+        - Ubicaciones válidas: ${locationsMatch ? 'SÍ' : 'NO'}
+        - Distancia: ${(distance/1000).toFixed(2)} km
+        
+        Genera una respuesta que:
+        1. Felicite por completar la jornada en Selecta Eventos
+        2. Confirme que se guardó en la base de datos
+        3. Muestre el tiempo trabajado
+        4. Sea motivacional y agradecida por trabajar en Selecta
+        5. Mencione el éxito del registro
+        
+        Máximo 5 líneas, en español, con emojis apropiados.
+      `;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      return text || this.createFallbackClockOutResponse(nombreEmpleado, nombreEvento, timeWorked);
+
+    } catch (error) {
+      console.error('Error al generar respuesta de ClockOut:', error);
+      return this.createFallbackClockOutResponse(nombreEmpleado, nombreEvento, `${durationMinutes}m`);
     }
-    
-    if (address.city) {
-      response += `🌆 **Ciudad:** ${address.city}\n`;
-    }
-    
-    if (address.postalCode) {
-      response += `📮 **Código Postal:** ${address.postalCode}\n`;
-    }
-    
-    if (timeZone) {
-      response += `🕐 **Zona Horaria:** ${timeZone}\n`;
-    }
-    
-    if (accuracy) {
-      response += `🎯 **Precisión:** ${accuracy}\n`;
-    }
-    
-    if (nearbyPlaces && nearbyPlaces.length > 0) {
-      response += `📍 **Lugares Cercanos:** ${nearbyPlaces.join(', ')}\n`;
-    }
-    
-    response += `\n✅ **Información procesada correctamente**`;
-    
-    return response;
+  }
+
+  private createFallbackClockInResponse(locationInfo: LocationInfo, nombreEmpleado: string, nombreEvento: string): string {
+    return `✅ **Entrada registrada en Selecta**\n\n👤 **${nombreEmpleado}** - Equipo Selecta\n📅 **${nombreEvento}**\n📍 ${locationInfo.address.formattedAddress}\n🕐 ${new Date().toLocaleString('es-ES')}\n\n📤 Envía tu ubicación al terminar el evento de Selecta.`;
+  }
+
+  private createFallbackClockOutResponse(nombreEmpleado: string, nombreEvento: string, timeWorked: string): string {
+    return `✅ **Salida registrada en Selecta**\n\n👤 **${nombreEmpleado}** - Equipo Selecta\n📅 **${nombreEvento}**\n⏱️ **Tiempo:** ${timeWorked}\n💾 **Estado:** Guardado\n\n¡Gracias por trabajar en Selecta Eventos! 🎉`;
   }
 
   async generateWelcomeMessage(): Promise<string> {
     try {
       const prompt = `
-        Genera un mensaje de bienvenida profesional y amigable para un bot de Telegram que proporciona información detallada de ubicaciones.
+        Genera un mensaje de bienvenida para el bot de asistencia de Selecta Eventos.
         
-        El bot puede proporcionar:
-        - Direcciones exactas y coordenadas
-        - Información de barrios y zonas
-        - Lugares cercanos de interés
-        - Códigos postales y zonas horarias
-        - Datos de precisión de la ubicación
+        Selecta Eventos es una empresa de eventos que necesita:
+        - Autenticación por número de cédula de empleados
+        - Selección de eventos asignados de Selecta
+        - Registro de entrada y salida con ubicación
+        - Verificación automática de ubicaciones
+        - Guardado en base de datos de Selecta
         
-        Incluye:
-        - Saludo profesional pero amigable
-        - Breve explicación de las capacidades avanzadas
-        - Instrucciones simples para usar el bot
-        - Menciona que usa IA para análisis detallado
+        Debe ser:
+        - Profesional pero amigable
+        - Solicitar número de cédula para comenzar
+        - Motivacional hacia Selecta Eventos
+        - Incluir emojis apropiados
         
-        Responde en español, máximo 5 líneas, usa emojis apropiados.
+        Máximo 3 líneas, en español.
       `;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
 
-      return text || '¡Hola! 👋 Soy tu asistente avanzado de ubicaciones. Comparte tu ubicación y te proporcionaré información detallada: dirección exacta, coordenadas, lugares cercanos, zona horaria y mucho más. ¡Todo procesado con IA! 📍🤖';
+      return text || '🎉 **¡Bienvenido a Selecta Eventos!**\n\n📱 Para acceder al sistema de asistencia, comparte tu número de cédula:';
 
     } catch (error) {
       console.error('Error al generar mensaje de bienvenida:', error);
-      return '¡Hola! 👋 Soy tu asistente avanzado de ubicaciones. Comparte tu ubicación y te proporcionaré información detallada: dirección exacta, coordenadas, lugares cercanos, zona horaria y mucho más. ¡Todo procesado con IA! 📍🤖';
+      return '🎉 **¡Bienvenido a Selecta Eventos!**\n\n📱 Para acceder al sistema de asistencia, comparte tu número de cédula:';
     }
   }
 }
